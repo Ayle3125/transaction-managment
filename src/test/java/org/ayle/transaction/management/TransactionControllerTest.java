@@ -10,18 +10,21 @@ import org.ayle.transaction.management.enums.TransactionType;
 import org.ayle.transaction.management.model.TransactionListRequest;
 import org.ayle.transaction.management.model.TransactionRequest;
 import org.ayle.transaction.management.service.TransactionService;
-import org.junit.Test;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+
 
 
 import java.util.List;
@@ -29,22 +32,22 @@ import java.util.List;
 import static org.ayle.transaction.management.Exception.ErrorCode.INVALID_TRANSACTION_CATEGORY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-@RunWith(SpringRunner.class)
-@SpringBootTest
+@WebMvcTest(TransactionController.class)
 public class TransactionControllerTest {
 
-    @Mock
+    @MockBean
     private TransactionService transactionService;
 
+    @Autowired
+    private MockMvc mockMvc;
+
     @InjectMocks
+    @Autowired
     private TransactionController transactionController;
 
-    @BeforeEach
-    public void setUp() {
-        // 初始化操作
-    }
     @Test
     public void testCreateTransactionSuccess() {
         TransactionRequest request = new TransactionRequest();
@@ -84,10 +87,27 @@ public class TransactionControllerTest {
     }
 
     @Test
+    public void testCreateTransactionWithInvalidAmount() throws Exception {
+        String jsonRequest = "{\"type\":\"DEPOSIT\"," +
+                "\"category\":\"CASH\"," +
+                "\"status\":\"PENDING\"," +
+                "\"amount\":-100.0," +
+                "\"description\":\"Deposit Cash\"," +
+                "\"primaryAccount\":\"12345\"}";
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/api/v1/transactions/create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        assertEquals("Invalid request content.", result.getResponse().getErrorMessage());
+
+    }
+
+    @Test
     public void testListTransactionsSuccess() {
         TransactionListRequest request = new TransactionListRequest();
-        request.setLastId("");
-        request.setSize(10);
 
         Transaction transaction1 = new Transaction();
         Transaction transaction2 = new Transaction();
@@ -104,8 +124,6 @@ public class TransactionControllerTest {
     @Test
     public void testListTransactionsEmpty() {
         TransactionListRequest request = new TransactionListRequest();
-        request.setLastId("");
-        request.setSize(10);
 
         Mockito.when(transactionService.listTransactions(request)).thenReturn(List.of());
 
@@ -114,6 +132,23 @@ public class TransactionControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(0, response.getBody().size());
+    }
+
+    @Test
+    public void testListTransactionsWithInvalidPageNo() throws Exception {
+        String jsonRequest = "{\"type\":\"DEPOSIT\"," +
+                "\"category\":\"CASH\"," +
+                "\"status\":\"PENDING\"," +
+                "\"pageSize\":10," +
+                "\"pageNo\":-1}";
+
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/transactions/list")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonRequest))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        assertEquals("Invalid request content.", result.getResponse().getErrorMessage());
     }
 
     @Test

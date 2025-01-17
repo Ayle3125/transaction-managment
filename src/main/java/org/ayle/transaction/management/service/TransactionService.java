@@ -7,12 +7,13 @@ import org.ayle.transaction.management.enums.TransactionCategory;
 import org.ayle.transaction.management.enums.TransactionStatus;
 import org.ayle.transaction.management.model.TransactionListRequest;
 import org.ayle.transaction.management.model.TransactionRequest;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
@@ -22,16 +23,17 @@ public class TransactionService {
 
     private final ConcurrentSkipListMap<String, Transaction> transactions = new ConcurrentSkipListMap<>();
 
+    @Cacheable(value = "transactionsCache", key = "#request.generateCacheKey()", unless = "#result == null")
     public List<Transaction> listTransactions(TransactionListRequest request) {
-        Map<String, Transaction> transactionsTail = transactions.tailMap(request.getLastId(), false);
 
-        return transactionsTail.values().stream().filter(t -> t.getStatus() != TransactionStatus.DELETED)
+        return transactions.values().stream().filter(t -> t.getStatus() != TransactionStatus.DELETED)
                 .filter(t -> request.getType() == null || t.getType() == request.getType())
                 .filter(t -> request.getCategory() == null || t.getCategory() == request.getCategory())
                 .filter(t -> request.getStatus() == null || t.getStatus() == request.getStatus())
-                .limit(request.getSize()).collect(Collectors.toList());
+                .skip((long) request.getPageSize() * (request.getPageNo() - 1))
+                .limit(request.getPageSize()).collect(Collectors.toList());
     }
-
+    @CacheEvict(value = "transactionsCache", allEntries = true)
     public String createTransaction(TransactionRequest request) {
         if (request.getId() != null && transactions.containsKey(request.getId())) {
             throw new TransactionException(ErrorCode.TRANSACTION_ALREADY_EXISTS);
@@ -53,8 +55,9 @@ public class TransactionService {
         return transaction.getId();
     }
 
+    @CacheEvict(value = "transactionsCache", allEntries = true)
     public String updateTransaction(TransactionRequest request) {
-        if (!transactions.containsKey(request.getId())) {
+        if (request.getId() == null || !transactions.containsKey(request.getId())) {
             throw new TransactionException(ErrorCode.TRANSACTION_NOT_FOUND);
         }
         validateTransaction(request);
@@ -78,6 +81,7 @@ public class TransactionService {
         return transaction;
     }
 
+    @CacheEvict(value = "transactionsCache", allEntries = true)
     public void deleteTransaction(String id) {
         Transaction transaction = transactions.get(id);
         if (transaction == null) {

@@ -1,0 +1,18 @@
+version: '3.8'  # Specifies the Docker Compose file format version.
+
+services:
+  spring-dockerized-app:
+    build:
+      context: .  # Directory to build Docker image from.
+      dockerfile: Dockerfile  # Dockerfile to use for building the image.
+    ports:
+      - 18080:8080  # Maps port 8080 in the container to port 18080 on the host.
+    depends_on:
+      mysqldb:
+        condition: service_healthy  # Waits for 'mysqldb' to be healthy before starting.
+    env_file:
+      - .env  # Loads environment variables from the .env file.
+    environment:
+      - SPRING_CONFIG_LOCATION=file:/app/application.properties  # Location of application properties.
+    volumes:
+      - ./src/main/resources/application.properties:/app/application.properties  # Mounts properties file.

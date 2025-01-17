@@ -69,9 +69,8 @@ public class TransactionServiceTest {
         request.setDescription("Another deposit");
         request.setPrimaryAccount("67890");
 
-        Exception exception = assertThrows(TransactionException.class, () -> {
-            transactionService.createTransaction(request);
-        });
+        Exception exception = assertThrows(TransactionException.class, () -> transactionService.createTransaction(request)
+        );
 
         assertEquals(ErrorCode.TRANSACTION_ALREADY_EXISTS.getMessage(), exception.getMessage());
     }
@@ -82,9 +81,7 @@ public class TransactionServiceTest {
         request.setType(TransactionType.WITHDRAWAL);
         request.setCategory(TransactionCategory.TRANSFER_IN);
 
-        Exception exception = assertThrows(TransactionException.class, () -> {
-            transactionService.createTransaction(request);
-        });
+        Exception exception = assertThrows(TransactionException.class, () -> transactionService.createTransaction(request));
 
         assertEquals(INVALID_TRANSACTION_CATEGORY.getMessage(), exception.getMessage());
     }
@@ -95,9 +92,7 @@ public class TransactionServiceTest {
         request.setType(TransactionType.WITHDRAWAL);
         request.setCategory(TransactionCategory.TRANSFER_OUT);
 
-        Exception exception = assertThrows(TransactionException.class, () -> {
-            transactionService.createTransaction(request);
-        });
+        Exception exception = assertThrows(TransactionException.class, () -> transactionService.createTransaction(request));
 
         assertEquals(COUNTERPARTY_ACCOUNT_REQUIRED.getMessage(), exception.getMessage());
     }
@@ -119,66 +114,83 @@ public class TransactionServiceTest {
         transactionService.deleteTransaction(transactionId);
 
         // query the transaction
-        Exception exception = assertThrows(TransactionException.class, () -> {
-            transactionService.getTransaction(transactionId);
-        });
+        Exception exception = assertThrows(TransactionException.class, () -> transactionService.getTransaction(transactionId));
         assertEquals(ErrorCode.TRANSACTION_NOT_FOUND.getMessage(), exception.getMessage());
     }
 
+
     @Test
     public void testListTransactionsWithPaging() {
-        // Create transactions with specific IDs in random order
-        TransactionRequest request1 = new TransactionRequest();
-        request1.setId("3");
-        request1.setType(TransactionType.DEPOSIT);
-        request1.setCategory(TransactionCategory.CASH);
-        request1.setStatus(TransactionStatus.PENDING);
-        request1.setAmount(100.0);
-        request1.setDescription("Deposit Cash");
-        request1.setPrimaryAccount("12345");
+        // only for memory storage, no data before
+        // Create transactions with random 16-digit IDs based on timestamp
+        Set<String> transactionIds = new HashSet<>();
+        Random random = new Random();
 
-        TransactionRequest request2 = new TransactionRequest();
-        request2.setId("1");
-        request2.setType(TransactionType.WITHDRAWAL);
-        request2.setCategory(TransactionCategory.PAYMENT);
-        request2.setStatus(TransactionStatus.PENDING);
-        request2.setAmount(50.0);
-        request2.setDescription("Payment");
-        request2.setPrimaryAccount("67890");
+        for (int i = 0; i < 200; i++) {
+            long timestamp = System.currentTimeMillis();
+            String id = String.format("%016d", (timestamp + random.nextInt(10000)) % 10000000000000000L);
 
-        TransactionRequest request3 = new TransactionRequest();
-        request3.setId("2");
-        request3.setType(TransactionType.DEPOSIT);
-        request3.setCategory(TransactionCategory.CASH);
-        request3.setStatus(TransactionStatus.PENDING);
-        request3.setAmount(200.0);
-        request3.setDescription("Deposit Cash");
-        request3.setPrimaryAccount("54321");
+            while (transactionIds.contains(id)) {
+                timestamp = System.currentTimeMillis();
+                id = String.format("%016d", (timestamp + random.nextInt(10000)) % 10000000000000000L);
+            }
 
-        transactionService.createTransaction(request1);
-        transactionService.createTransaction(request2);
-        transactionService.createTransaction(request3);
+            transactionIds.add(id);
+
+            TransactionRequest request = new TransactionRequest();
+            request.setId(id);
+            request.setType(TransactionType.DEPOSIT);
+            request.setCategory(TransactionCategory.CASH);
+            request.setStatus(TransactionStatus.PENDING);
+            request.setAmount(100.0);
+            request.setDescription("Deposit Cash " + i);
+            request.setPrimaryAccount("12345");
+
+            transactionService.createTransaction(request);
+        }
+
+        // Convert the set of IDs to a sorted list
+        List<String> sortedTransactionIds = new ArrayList<>(transactionIds);
+        Collections.sort(sortedTransactionIds);
 
         TransactionListRequest listRequest = new TransactionListRequest();
-        listRequest.setSize(2);
+        int PAGE_SIZE = 10;
+        listRequest.setPageSize(PAGE_SIZE);
+        listRequest.setPageNo(1);
 
         // Get the first page of transactions
         List<Transaction> transactionsPage1 = transactionService.listTransactions(listRequest);
 
         // Ensure the list is sorted by ID in ascending order
-        assertEquals(2, transactionsPage1.size());
-        assertEquals("1", transactionsPage1.get(0).getId());
-        assertEquals("2", transactionsPage1.get(1).getId());
+        assertEquals(PAGE_SIZE, transactionsPage1.size());
+        for (int i = 0; i < PAGE_SIZE; i++) {
+            assertEquals(sortedTransactionIds.get(i), transactionsPage1.get(i).getId());
+        }
 
-        // Check that the next page returns the remaining transactions and no duplicates
-        listRequest.setLastId(transactionsPage1.get(transactionsPage1.size() - 1).getId());  // Set the lastId to the last transaction ID from page 1
+        // Check that the next page returns the next set of transactions and no duplicates
+        listRequest.setPageNo(2);
         List<Transaction> transactionsPage2 = transactionService.listTransactions(listRequest);
 
-        assertEquals(1, transactionsPage2.size());
-        assertEquals("3", transactionsPage2.get(0).getId());
+        assertEquals(PAGE_SIZE, transactionsPage2.size());
+        for (int i = 0; i < PAGE_SIZE; i++) {
+            assertEquals(sortedTransactionIds.get(i + PAGE_SIZE), transactionsPage2.get(i).getId());
+        }
 
         // Verify no duplicate entries between pages
-        assertNotEquals(transactionsPage1.get(1).getId(), transactionsPage2.get(0).getId());
+        for (int i = 0; i < PAGE_SIZE; i++) {
+            assertNotEquals(transactionsPage1.get(i).getId(), transactionsPage2.get(i).getId());
+        }
+
+        // Continue checking
+        for (int page = 3; page <= 20; page++) {
+            listRequest.setPageNo(page);
+            List<Transaction> transactionsPage = transactionService.listTransactions(listRequest);
+
+            assertEquals(10, transactionsPage.size());
+            for (int i = 0; i < 10; i++) {
+                assertEquals(sortedTransactionIds.get((page - 1) * 10 + i), transactionsPage.get(i).getId());
+            }
+        }
     }
 
 }
