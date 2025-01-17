@@ -18,11 +18,24 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.stream.Collectors;
 
+/**
+ * Service class for managing transactions.
+ * Provides methods to list, create, update, and delete transactions.
+ */
 @Service
 public class TransactionService {
 
+    /**
+     * In-memory storage for transactions.
+     */
     private final ConcurrentSkipListMap<String, Transaction> transactions = new ConcurrentSkipListMap<>();
 
+    /**
+     * Retrieves a list of transactions based on the provided request parameters.
+     *
+     * @param request The request object containing filtering criteria.
+     * @return A list of transactions matching the criteria.
+     */
     @Cacheable(value = "transactionsCache", key = "#request.generateCacheKey()", unless = "#result == null")
     public List<Transaction> listTransactions(TransactionListRequest request) {
 
@@ -33,6 +46,14 @@ public class TransactionService {
                 .skip((long) request.getPageSize() * (request.getPageNo() - 1))
                 .limit(request.getPageSize()).collect(Collectors.toList());
     }
+
+    /**
+     * Creates a new transaction.
+     *
+     * @param request The request object containing transaction details.
+     * @return The ID of the newly created transaction.
+     * @throws TransactionException If the transaction already exists or validation fails.
+     */
     @CacheEvict(value = "transactionsCache", allEntries = true)
     public String createTransaction(TransactionRequest request) {
         if (request.getId() != null && transactions.containsKey(request.getId())) {
@@ -55,6 +76,13 @@ public class TransactionService {
         return transaction.getId();
     }
 
+    /**
+     * Updates an existing transaction.
+     *
+     * @param request The request object containing updated transaction details.
+     * @return The ID of the updated transaction.
+     * @throws TransactionException If the transaction is not found or validation fails.
+     */
     @CacheEvict(value = "transactionsCache", allEntries = true)
     public String updateTransaction(TransactionRequest request) {
         if (request.getId() == null || !transactions.containsKey(request.getId())) {
@@ -73,6 +101,13 @@ public class TransactionService {
         return request.getId();
     }
 
+    /**
+     * Retrieves a specific transaction by its ID.
+     *
+     * @param id The ID of the transaction to retrieve.
+     * @return The transaction object.
+     * @throws TransactionException If the transaction is not found.
+     */
     public Transaction getTransaction(String id) {
         Transaction transaction = transactions.get(id);
         if (transaction == null || transaction.getStatus().equals(TransactionStatus.DELETED)) {
@@ -81,6 +116,12 @@ public class TransactionService {
         return transaction;
     }
 
+    /**
+     * Deletes a transaction by marking it as deleted.
+     *
+     * @param id The ID of the transaction to delete.
+     * @throws TransactionException If the transaction is not found.
+     */
     @CacheEvict(value = "transactionsCache", allEntries = true)
     public void deleteTransaction(String id) {
         Transaction transaction = transactions.get(id);
@@ -91,6 +132,12 @@ public class TransactionService {
         transaction.setUpdateTime(LocalDateTime.now());
     }
 
+    /**
+     * Validates the transaction request.
+     *
+     * @param request The request object containing transaction details.
+     * @throws TransactionException If validation fails.
+     */
     private void validateTransaction(TransactionRequest request) {
         if (!request.getType().isValidCategory(request.getCategory())) {
             throw new TransactionException(ErrorCode.INVALID_TRANSACTION_CATEGORY);

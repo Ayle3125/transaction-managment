@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST controller for managing transactions.
+ * Provides endpoints to list, create, update, and delete transactions.
+ */
 @RestController
 @RequestMapping("/api/v1/transactions")
 public class TransactionController {
@@ -22,11 +26,23 @@ public class TransactionController {
         this.transactionService = transactionService;
     }
 
+    /**
+     * Lists all transactions based on the provided request parameters.
+     *
+     * @param request The request object containing filtering criteria.
+     * @return A list of transactions matching the criteria.
+     */
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     public ResponseEntity<List<Transaction>> listTransactions(@Validated TransactionListRequest request) {
         return ResponseEntity.ok(transactionService.listTransactions(request));
     }
 
+    /**
+     * Creates a new transaction.
+     *
+     * @param request The request object containing transaction details.
+     * @return A success message or an error response.
+     */
     @RequestMapping(value = "/create", method = RequestMethod.POST)
     public ResponseEntity<String> createTransaction(@Validated @RequestBody TransactionRequest request) {
         try {
@@ -38,6 +54,12 @@ public class TransactionController {
         }
     }
 
+    /**
+     * Updates an existing transaction.
+     *
+     * @param request The request object containing updated transaction details.
+     * @return A success message or an error response.
+     */
     @RequestMapping(value = "/update", method = RequestMethod.POST)
     public ResponseEntity<String> updateTransaction(@Validated @RequestBody TransactionRequest request) {
         try {
@@ -49,6 +71,12 @@ public class TransactionController {
         }
     }
 
+    /**
+     * Deletes a transaction by its ID.
+     *
+     * @param id The ID of the transaction to delete.
+     * @return A success message or an error response.
+     */
     @RequestMapping(value = "/delete/{id}", method = RequestMethod.POST)
     public ResponseEntity<String> deleteTransaction(@PathVariable String id) {
         try {

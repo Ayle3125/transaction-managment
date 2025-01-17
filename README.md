@@ -28,7 +28,7 @@ Although the system focuses on transaction management, it has been designed with
 - **Containerization**: Docker
 
 
-# Transaction Structure
+## Transaction Structure
 
 The `Transaction` structure includes the following fields:
 

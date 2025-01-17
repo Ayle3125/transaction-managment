@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Transaction implements Serializable {
+
     private String id;
 
     private TransactionType type;
@@ -27,8 +28,14 @@ public class Transaction implements Serializable {
 
     private String description;
 
+    /**
+     * Primary account involved in the transaction.
+     */
     private String primaryAccount;
 
+    /**
+     * Counterparty account involved in the transaction.
+     */
     private String counterpartyAccount;
 
     private LocalDateTime createTime;
