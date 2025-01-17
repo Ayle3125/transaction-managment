@@ -47,20 +47,27 @@ The `Transaction` structure includes the following fields:
 
 The system uses custom exceptions to handle business logic validation. For instance, if deleting a non-existent transaction, an `TransactionException` will be thrown, with the `ErrorCode` field set to `TRANSACTION_NOT_FOUND`.
 
-## Data Consistency Considerations
+## Unit Test
+Detailed unit tests were performed on the API-related services and controllers to ensure the robustness and reliability of the program.
+- **Success Scenarios**: Thorough testing of create, update, delete, and list operations ensures the system correctly handles requests under normal conditions.
 
-This system handles transactions at a basic level. While transfers between accounts are a common use case in financial systems, 
-we have simplified the implementation to focus solely on transaction management within a single entity. To fully support transfers, 
-you would need to create additional entities such as:`User`,`Account`,`Asset Freeze`,`Ledger`. Implementing these would require handling additional complexities such as ensuring data consistency across multiple entities. This module is designed as an in-memory solution, and these additional features are not yet implemented.
+- **Failure Scenarios**: Tests for invalid data, duplicate IDs, non-existent transaction IDs.
+
+- **Boundary Conditions**: Tests for negative amounts, empty lists, and invalid page numbers ensure the system maintains stability and reliability under extreme conditions.
+
+- **Business Rule Validation**: Tests validate the legality of transaction types and categories, ensuring strict adherence to business rules.
+
+- **Performance and Consistency**: Pagination tests confirm that the system maintains good performance and data consistency, even with large datasets.
+
 
 ## Performance and Stress Testing
 
-The system has been stress-tested and the following results:
+The system has been stress-tested using JMeter and the following results:
 
 - As show in the following figure(1 million records have already been created.).
   ![performance](performance.png)
   - **Create Transaction**:
-    - 99% percentile: 2ms with 12 threads.
+    - 99% percentile: 2ms.
   - **List Transactions (No Cache)**:
     - 99% percentile: 28ms.
   - **List Transactions (With Cache)**:
@@ -73,13 +80,23 @@ The system has been stress-tested and the following results:
   - In the end, ConcurrentSkipMap of providing sorting functionality was chosen.
 
 
+- Stress Test Machine Specs
+  - Threads:12
+  - Ramp-up(s): 1
+  - **JVM Parameters**:
+    ```bash
+    -Xms128m 
+    -Xmx1024m 
+    -XX:ReservedCodeCacheSize=512m 
+    -XX:SoftRefLRUPolicyMSPerMB=50 
+    -XX:CICompilerCount=2 
 
-## Stress Test Machine Specs
-- **JVM Parameters**:
-  ```bash
-  -Xms128m 
-  -Xmx1024m 
-  -XX:ReservedCodeCacheSize=512m 
-  -XX:SoftRefLRUPolicyMSPerMB=50 
-  -XX:CICompilerCount=2 
 
+
+## System scalability Considerations
+
+This system handles transactions at a basic level. While transfers between accounts are a common use case in financial systems,
+we have simplified the implementation to focus solely on transaction management within a single entity. To fully support transfers,
+you would need to create additional entities such as:`User`,`Account`,`Asset Freeze`,`Ledger`. 
+Implementing these would require handling additional complexities such as ensuring data consistency across multiple entities. 
+This module is designed as an in-memory solution, and these additional features are not yet implemented.
